@@ -1,0 +1,39 @@
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "never"
+  },
+  "eslint.experimental.useFlatConfig": true,
+  "editor.formatOnSave": false,
+  "eslint.validate": [
+    "html",
+    "css",
+    "scss",
+    "json",
+    "jsonc"
+  ],
+  "i18n-ally.displayLanguage": "zh-cn",
+  "i18n-ally.enabledParsers": [
+    "ts"
+  ],
+  "i18n-ally.enabledFrameworks": [
+    "vue"
+  ],
+  "i18n-ally.editor.preferEditor": true,
+  "i18n-ally.keystyle": "nested",
+  "i18n-ally.localesPaths": [
+    "src/locales/langs"
+  ],
+  "prettier.enable": false,
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": true,
+    "strings": true
+  },
+  "unocss.root": [
+    "./"
+  ],
+  "nuxt.isNuxtApp": false,
+  "svn.ignoreMissingSvnWarning": true,
+  "vue3snippets.enable-compile-vue-file-on-did-save-code": false
+}
