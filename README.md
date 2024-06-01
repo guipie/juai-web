@@ -1,10 +1,10 @@
 <div align="center">
-	<img src="./public/favicon.svg" width="160" />
+	<img src="./public/favicon.ico" width="160" />
 	<h1>聚AI</h1>
 </div>
+套壳千千万万，没有找到适合我的一种，所以就搞一个，一开始使用chatgpt-web,随着朋友用的越来越多，token消耗就太多，所以就改造了。
+
 ## 简介
-中国套壳千千万万，适合我的一种没有，所以自己搞一个，一开始使用[chatgpt-web
-](https://github.com/Chanzhaoyu/chatgpt-web),随着朋友用的蛮多，token效果就太多，所以就改造了。
 
 目前【[聚AI](juai.link)】(https://juai.link) 一款集成了主流大语言模型以及绘图模型的网站,也支持支付充值功能，直接运营，支持以下功能：
 
@@ -15,7 +15,7 @@
 - 支持开源大模型：Yi 34B，Llama2，ChatGLM2，AquilaChat 7B，Bloomz 7B，轩辕 70B，ChatLaw，Mixtral 等，后续还将开放更多
 - 支持文生图、图生图、超分辨率、黑白图片上色、艺术字、艺术二维码等功能，支持 SDXL 1.0、Dall·E 3 等
 
-[`聚AI网站`](https://juai.link) 是一个清新优雅、高颜值且AI功能集成完善的一个平台，基于最新的前端技术栈，包括 Vue3, Vite5, TypeScript, Pinia 和 UnoCSS。。`聚AI网站` 为您提供了一站式的AI集成管理解决方案，无需额外配置，开箱即用。同样是一个快速学习前沿技术的最佳实践。
+[`聚AI网站`](https://juai.link) 是一个清新优雅、高颜值且AI功能集成完善的一个平台，基于最新的前端技术栈，包括 Vue3, Vite5, TypeScript, Pinia 和 UnoCSS，为您提供了一站式的AI集成管理解决方案，无需额外配置，开箱即用。同样是一个快速学习前沿技术的最佳实践。
 
 ## 技术特性
 - **前沿技术应用**：采用 Vue3, Vite5, TypeScript, Pinia 和 UnoCSS 等最新流行的技术栈。
