@@ -7,8 +7,9 @@ import { useIconRender } from "@/hooks/useIconRender";
 import { $t as t } from "@/locales";
 import { useAppStore } from "@/store/modules/app";
 import { copyToClip } from "@/utils/common";
-import { useChatStore } from "@/store/modules/chat";
+import { useAICommonStore } from "@/store/modules/aicommon";
 const appStore = useAppStore();
+const aiStore = useAICommonStore();
 interface Props {
   chatDbId?: string;
   dateTime?: string;
@@ -16,7 +17,7 @@ interface Props {
   inversion?: boolean;
   error?: boolean;
   loading?: boolean;
-  model?: string;
+  chatModel: string;
 }
 
 interface Emit {
@@ -25,8 +26,6 @@ interface Emit {
 }
 
 const props = defineProps<Props>();
-
-const currentModel = useChatStore().getModelByModelId(props.model!);
 
 const emit = defineEmits<Emit>();
 
@@ -108,8 +107,7 @@ async function handleCopy() {
       :class="[inversion ? 'ml-2' : 'mr-2']"
     >
       <AvatarComponent
-        :model="model"
-        :model-avatar="currentModel?.avatarUrl"
+        :model-avatar="aiStore.getModelByModelName(props.chatModel)?.avatarUrl"
         :image="inversion"
       />
     </div>
@@ -117,13 +115,13 @@ async function handleCopy() {
       class="overflow-hidden text-sm"
       :class="[inversion ? 'items-end' : 'items-start']"
     >
+      <p v-if="!inversion">
+        <n-text strong>
+          {{ aiStore.getModelByModelName(props.chatModel)?.modelId }}
+        </n-text>
+      </p>
       <p class="text-xs text-[#b4bbc4]" :class="[inversion ? 'text-right' : 'text-left']">
         {{ dateTime }}
-      </p>
-      <p>
-        <n-text strong depth="3">
-          {{ currentModel?.modelId }}
-        </n-text>
       </p>
       <div
         class="flex items-end gap-1 mt-2"

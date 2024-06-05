@@ -77,7 +77,7 @@ watch(
               <n-thing title="来至聚AI用户的分享" content-style="margin-top: 10px;">
                 <!-- <template #description> </template> -->
                 <div
-                  class="border-border rounded border p-2 text-sm text-zinc-600 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800/10"
+                  class="border border-zinc-600 rounded p-2 text-sm text-zinc-600 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800/10"
                 >
                   <div class="flex">
                     <span>分享时间：</span>

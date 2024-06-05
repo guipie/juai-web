@@ -53,7 +53,12 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
   function setActiveTabId(id: string) {
     activeTabId.value = id;
   }
+  function updateTabByActive(tab: Partial<App.Global.Tab>) {
 
+    var index = tabs.value.findIndex((item) => item.id == activeTabId.value);
+    if (index > -1)
+      tabs.value.splice(index, 1, { ...tabs.value[index], ...tab });
+  }
   /**
    * Init tab store
    *
@@ -98,7 +103,6 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
   async function removeTab(tabId: string) {
     const isRemoveActiveTab = activeTabId.value === tabId;
     const updatedTabs = filterTabsById(tabId, tabs.value);
-
     function update() {
       tabs.value = updatedTabs;
     }
@@ -289,6 +293,6 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
     setTabLabel,
     resetTabLabel,
     isTabRetain,
-    updateTabsByLocale
+    updateTabsByLocale, updateTabByActive
   };
 });

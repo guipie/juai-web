@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import defaultAvatar from "@/assets/juai.jpg";
 import { useAICommonStore } from "@/store/modules/aicommon";
-import { NText, SelectRenderLabel, SelectRenderTag, UploadFileInfo } from "naive-ui";
-import { computed, h, ref } from "vue";
+import { NText, UploadFileInfo } from "naive-ui";
+import { computed, ref } from "vue";
 import juavatar from "@/components/custom/juavatar.vue";
+import SelectMaxContext from "../common/select-max-context.vue";
 const aiStore = useAICommonStore();
 interface Props {
   value: boolean;
@@ -34,7 +35,6 @@ const createModelAvatar = ref<UploadFileInfo[]>([
     url: props.promptModel.avatar ?? defaultAvatar,
   },
 ]);
-
 const showCreateExample = ref(false);
 const showCreateMore = ref(false);
 const creating = ref(false);
@@ -47,81 +47,17 @@ const beforeUpload = ({ file }: { file: UploadFileInfo }) => {
   createModelAvatar.value = [file];
   return true;
 };
-const showCreteMaxContexts = [
-  {
-    label: "无记忆",
-    value: 0,
-    desc: "每次对话都是独立的，常用于一次性问答，节省积分",
-  },
-  {
-    label: "基础",
-    value: 3,
-    desc: "记住最近的三次对话",
-  },
-  {
-    label: "中等",
-    value: 6,
-    desc: "记住最近的六次对话",
-  },
-  {
-    label: "高级",
-    value: 1000,
-    desc: "记住当前会话的所有对话，慎用，消耗积分较多",
-  },
-];
-const renderMaxContextLabel: SelectRenderLabel = (option) => {
-  return h(
-    "div",
-    {
-      style: {
-        display: "flex",
-        alignItems: "center",
-      },
-    },
-    [
-      h(
-        "div",
-        {
-          style: {
-            marginLeft: "12px",
-            padding: "4px 0",
-          },
-        },
-        [
-          h("div", null, [option.label as string]),
-          h(
-            NText,
-            { depth: 3, tag: "div" },
-            {
-              default: () => option.desc as string,
-            }
-          ),
-        ]
-      ),
-    ]
-  );
-};
-const renderSelectMaxContext: SelectRenderTag = ({ option }) => {
-  return h(
-    "div",
-    {
-      style: {
-        display: "flex",
-        alignItems: "center",
-      },
-    },
-    [option.label as string]
-  );
-};
+
 const handleCreate = () => {
   console.log(createModelAvatar);
   if (!application.value.title.trim() || !application.value.prompt.trim())
     return window.$notification?.warning({ title: "名称和角色设定必填" });
-  if (application.value.model.split(":").length == 2) {
-    application.value.vendor = application.value.model.split(":")[0];
-    // application.value.model = application.value.model.split(":")[1];
+  if (application.value.model) {
+    application.value.vendor = aiStore.getModelByModelName(
+      application.value.model
+    )!.category;
   }
-  application.value.isGroup=false;
+  application.value.isGroup = false;
   creating.value = true;
   aiStore
     .postMyApplication(
@@ -160,9 +96,12 @@ const handleCreate = () => {
         </n-list-item>
         <n-list-item>
           <template #prefix> <div class="w-12">头像</div> </template>
-          <n-thing content-style="text-align: left;height:60px;cursor:pointer;">
+          <n-thing content-style="text-align: left;height:90px;cursor:pointer;">
             <div v-if="application.showDetail">
-              <juavatar :src="application.avatar"></juavatar>
+              <juavatar
+                :src="application.avatar"
+                :style="'height:60px;width:60px;'"
+              ></juavatar>
             </div>
             <n-upload
               v-else
@@ -179,18 +118,12 @@ const handleCreate = () => {
           </n-thing>
         </n-list-item>
         <n-list-item>
-          <template #prefix> <div class="w-12">AI模型</div> </template>
+          <template #prefix>
+            <div class="w-12">AI模型</div>
+          </template>
           <n-thing>
             <div v-if="application.showDetail">{{ application.model }}</div>
-            <n-select
-              v-else
-              v-model:value="application.model"
-              :options="
-                aiStore.models.map((m) => {
-                  return { value: m.modelId, label: m.name };
-                })
-              "
-            />
+            <select-model v-else v-model:val="application.model"></select-model>
           </n-thing>
         </n-list-item>
         <n-list-item>
@@ -206,7 +139,7 @@ const handleCreate = () => {
                     showCreateExample = !showCreateExample;
                   "
                   class="cursor-pointer"
-                  type="success"
+                  type="warning"
                 >
                   示例
                 </n-text>
@@ -251,12 +184,9 @@ const handleCreate = () => {
         <n-list-item v-if="showCreateMore">
           <template #prefix> <div class="w-14">记忆深度</div> </template>
           <n-thing content-style="text-align: right;">
-            <n-select
-              v-model:value="application.maxContext"
-              :options="showCreteMaxContexts"
-              :render-label="renderMaxContextLabel"
-              :render-tag="renderSelectMaxContext"
-            />
+            <select-max-context
+              v-model:val="application.maxContext"
+            ></select-max-context>
           </n-thing>
         </n-list-item>
       </n-list>

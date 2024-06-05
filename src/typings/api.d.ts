@@ -57,7 +57,7 @@ declare namespace Api {
     }
 
     interface UserInfo extends LoginToken {
-      userId: bigint;
+      userId: number;
       account: string;
       avatar?: string;
       email?: string;

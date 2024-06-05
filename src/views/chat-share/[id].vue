@@ -10,31 +10,26 @@ import { $t as t } from "@/locales";
 import { useChatStore } from "@/store/modules/chat";
 import { fetchChatAPIProcess, fetchShareChatDetail } from "@/service/api/ai/chat";
 import { useBasicLayout } from "@/hooks/useBasicLayout";
-import { useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { useUsingContext } from "@/hooks/chat/useUsingContext";
-import { useAICommonStore } from "@/store/modules/aicommon";
+import { getGUID } from "@/utils/common";
 let controller = new AbortController();
 const dialog = useDialog();
 const ms = useMessage();
-const router = useRouter();
+const route = useRoute();
 const chatStore = useChatStore();
 const { isMobile } = useBasicLayout();
-const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex } = useChat();
+const { addChat, updateChatById, getChatByUuid, addShareConversation } = useChat();
 const { scrollRef, scrollToBottom, scrollToBottomIfAtBottom } = useScroll();
 const { usingShareContext, toggleShareUsingContext } = useUsingContext();
-console.log(router.currentRoute.value.query.s, router.currentRoute.value.params.id);
+console.log(route.query.s, route.params.id);
 
-let uuid = Number(router.currentRoute.value.params.id);
-const pwd = ref(router.currentRoute.value.query.s?.toString());
-const dataSources = computed(() => chatStore.getChatByUuid(+uuid));
+let uuid = Number(route.params.id);
+const pwd = ref(route.query.s?.toString());
+const dataSources = computed(() => chatStore.getChatDataByUuid(uuid));
 const prompt = ref<string>("");
 const loading = ref<boolean>(false);
 const inputRef = ref<Ref | null>(null);
-
-// 未知原因刷新页面，loading 状态不会重置，手动重置
-dataSources.value.forEach((item, index) => {
-  if (item.loading) updateChatSome(+uuid, index, { loading: false });
-});
 
 function handleSubmit() {
   onConversation();
@@ -50,6 +45,8 @@ async function onConversation() {
   controller = new AbortController();
 
   addChat(+uuid, {
+    id: getGUID(),
+    model: shareInfo.value.promptDetail?.model!,
     dateTime: new Date().toLocaleString(),
     text: message,
     reqText: message,
@@ -59,7 +56,10 @@ async function onConversation() {
   scrollToBottom();
   loading.value = true;
   prompt.value = "";
+  const answerId = getGUID();
   addChat(+uuid, {
+    id: answerId,
+    model: shareInfo.value.promptDetail?.model!,
     dateTime: new Date().toLocaleString(),
     text: "思考中",
     reqText: message,
@@ -73,10 +73,19 @@ async function onConversation() {
     let lastText = "";
     const fetchChatAPIOnce = async () => {
       await fetchChatAPIProcess<Chat.ConversationResponse>(
+        +uuid,
         message,
         +uuid,
         null,
-        "share",
+        {
+          model: shareInfo.value.promptDetail?.model!,
+          isGroup: false,
+          headers: {
+            share: "1",
+            num: shareInfo.value.shareDetail.numUrl,
+            pwd: shareInfo.value.shareDetail.pwd,
+          },
+        },
         controller.signal,
         ({ event }) => {
           const xhr = event.target;
@@ -88,7 +97,9 @@ async function onConversation() {
           try {
             const data = JSON.parse(chunk);
             console.log(data);
-            updateChat(+uuid, dataSources.value.length - 1, {
+            updateChatById(+uuid, {
+              id: answerId,
+              model: shareInfo.value.promptDetail?.model!,
               chatDbId: data.chatDbId,
               dateTime: new Date().toLocaleString(),
               text: lastText + (data.text ?? ""),
@@ -101,42 +112,33 @@ async function onConversation() {
           } catch (error) {
             console.log("出错了", error);
           }
-        },
-        {
-          headers: {
-            share: "1",
-            num: shareInfo.value.shareDetail.numUrl,
-            pwd: shareInfo.value.shareDetail.pwd,
-          },
-          model: shareInfo.value.shareDetail.model,
         }
       );
-      updateChatSome(+uuid, dataSources.value.length - 1, { loading: false });
+      updateChatById(+uuid, { id: answerId, loading: false });
     };
-
     await fetchChatAPIOnce();
   } catch (error: any) {
     console.log(error);
     const errorMessage = error?.message ?? t("common.wrong");
     if (error.message === "canceled") {
-      updateChatSome(+uuid, dataSources.value.length - 1, {
-        loading: false,
-      });
+      updateChatById(+uuid, { id: answerId, loading: false });
       scrollToBottomIfAtBottom();
       return;
     }
 
-    const currentChat = getChatByUuidAndIndex(+uuid, dataSources.value.length - 1);
+    const currentChat = getChatByUuid(+uuid, answerId);
 
     if (currentChat?.text && currentChat.text !== "") {
-      updateChatSome(+uuid, dataSources.value.length - 1, {
+      updateChatById(+uuid, {
+        id: answerId,
         text: `${currentChat.text}\n[${errorMessage}]`,
         error: false,
         loading: false,
       });
       return;
     }
-    updateChat(+uuid, dataSources.value.length - 1, {
+    updateChatById(+uuid, {
+      id: answerId,
       dateTime: new Date().toLocaleString(),
       text: errorMessage,
       reqText: message,
@@ -151,14 +153,14 @@ async function onConversation() {
 }
 
 async function onRegenerate(index: number) {
-  debugger;
   if (loading.value) return;
 
   controller = new AbortController();
   const currentReq = dataSources.value[index];
   loading.value = true;
-
-  updateChat(+uuid, index, {
+  updateChatById(+uuid, {
+    id: currentReq.id,
+    model: currentReq.model,
     chatDbId: currentReq.chatDbId,
     dateTime: new Date().toLocaleString(),
     text: "重新回答中..",
@@ -172,10 +174,19 @@ async function onRegenerate(index: number) {
     let lastText = "";
     const fetchChatAPIOnce = async () => {
       await fetchChatAPIProcess<Chat.ConversationResponse>(
+        +uuid,
         currentReq.reqText,
         +uuid,
         currentReq.chatDbId!,
-        "share",
+        {
+          model: currentReq.model,
+          isGroup: false,
+          headers: {
+            share: "1",
+            num: shareInfo.value.shareDetail.numUrl,
+            pwd: shareInfo.value.shareDetail.pwd,
+          },
+        },
         controller.signal,
         ({ event }) => {
           const xhr = event.target;
@@ -187,7 +198,8 @@ async function onRegenerate(index: number) {
           if (lastIndex !== -1) chunk = responseText.substring(lastIndex);
           try {
             const data = JSON.parse(chunk);
-            updateChat(+uuid, index, {
+            updateChatById(+uuid, {
+              id: currentReq.id,
               chatDbId: data.chatDbId,
               dateTime: new Date().toLocaleString(),
               text: lastText + (data.text ?? ""),
@@ -199,29 +211,19 @@ async function onRegenerate(index: number) {
           } catch (error) {
             console.log("出错了", error);
           }
-        },
-        {
-          headers: {
-            share: "1",
-            num: shareInfo.value.shareDetail.numUrl,
-            pwd: shareInfo.value.shareDetail.pwd,
-          },
-          model: shareInfo.value.shareDetail.model,
         }
       );
-      updateChatSome(+uuid, index, { loading: false });
+      updateChatById(+uuid, { id: currentReq.id, loading: false });
     };
     await fetchChatAPIOnce();
   } catch (error: any) {
     if (error.message === "canceled") {
-      updateChatSome(+uuid, index, {
-        loading: false,
-      });
+      updateChatById(+uuid, { id: currentReq.id, loading: false });
       return;
     }
     const errorMessage = error?.message ?? t("common.wrong");
-
-    updateChat(+uuid, index, {
+    updateChatById(+uuid, {
+      id: currentReq.id,
       dateTime: new Date().toLocaleString(),
       text: errorMessage,
       reqText: currentReq.reqText,
@@ -296,7 +298,7 @@ function handleClear() {
     positiveText: t("common.yesOrNo.yes"),
     negativeText: t("common.yesOrNo.no"),
     onPositiveClick: () => {
-      chatStore.clearChatByUuid(+uuid);
+      chatStore.deleteConversation(+uuid);
     },
   });
 }
@@ -355,22 +357,22 @@ onMounted(() => {
   scrollToBottom();
   if (inputRef.value && !isMobile.value) inputRef.value?.focus();
   getDetall();
-  useAICommonStore().getModels();
 });
 const getDetall = () => {
   shareLoading.value = true;
   fetchShareChatDetail(uuid, pwd.value)
     .then((res) => {
       shareInfo.value = res.data!;
-      chatStore.addHistory(
-        {
-          title: shareInfo.value.promptDetail!.title,
-          uuid: shareInfo.value.shareDetail.numUrl,
-          isEdit: false,
-          isShare: true,
-        },
-        [],
-        shareInfo.value.promptDetail
+      if (res.data?.message || res.data?.code != 0)
+        return window.$notification?.warning({
+          title: "警告提示",
+          content: "无法进入" + res.data?.message,
+        });
+      addShareConversation(
+        uuid,
+        shareInfo.value.promptDetail?.title!,
+        0,
+        shareInfo.value.promptDetail!
       );
     })
     .finally(() => (shareLoading.value = false));
@@ -453,9 +455,7 @@ onUnmounted(() => {
                           :chat-db-id="item.chatDbId?.toString()"
                           @regenerate="onRegenerate(index)"
                           @delete="handleDelete(index)"
-                          :model-avatar="
-                            chatStore.getChatHistoryByCurrentActive?.chatPrompt?.avatar
-                          "
+                          :chat-model="item.model"
                         />
                         <div class="sticky bottom-0 left-0 flex justify-center">
                           <NButton v-if="loading" type="warning" @click="handleStop">

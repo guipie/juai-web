@@ -114,6 +114,8 @@ declare module 'vue' {
     ReloadButton: typeof import('./../components/common/reload-button.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SelectMaxContext: typeof import('./../components/common/select-max-context.vue')['default']
+    SelectModel: typeof import('./../components/common/select-model.vue')['default']
     Share: typeof import('./../components/application/share.vue')['default']
     Sider: typeof import('./../components/chat/Sider/index.vue')['default']
     SiderShare: typeof import('./../components/chat/SiderShare/index.vue')['default']

@@ -6,7 +6,6 @@ import { deletePrompts, getChatModels, getExamplePrompts, getMyPrompts, getPromp
 import { useChatStore } from '@/store/modules/chat';
 import { sessionStg } from '@/utils/storage';
 import { useAppStore } from '@/store/modules/app';
-import { useRouterPush } from '@/hooks/common/router';
 export const useAICommonStore = defineStore(SetupStoreId.AiCommon, {
   state: (): JuAI.AICommonState => getLocalState(),
   actions: {
@@ -20,7 +19,7 @@ export const useAICommonStore = defineStore(SetupStoreId.AiCommon, {
       await this.getMyApplications();
       useAppStore().handReloadFlag = false;
     },
-    async getModels() {
+    async getAllModels() {
       const models = sessionStg.get("models");
       if (models && models?.length > 0 && !useAppStore().handReloadFlag) {
         this.models = models;
@@ -81,20 +80,21 @@ export const useAICommonStore = defineStore(SetupStoreId.AiCommon, {
         this.recordState();
       })
     },
+    getModelByModelId(modelId?: string) {
+      if (!modelId) return this.models[0];
+      let item = this.models.findLast(m => m.modelId == modelId);
+      return item;
+    },
+    getModelByModelName(modelName?: string) {
+      if (!modelName) return this.models[0];
+      let item = this.models.findLast(m => m.name == modelName);
+      return item;
+    },
     toUseApplication(item: JuAI.ChatPrompt) {
-      useChatStore().active = item.id!;
-      useChatStore().addHistory(
-        {
-          title: item.title,
-          isEdit: false,
-          uuid: item.id!,
-          avatar: item.avatar,
-          desc: item.prompt,
-        },
-        [],
-        item
-      );
-      useRouterPush(false).routerPushByKey("chat", { query: { uuid: item.id!.toString() } });
+      // useChatStore().active = item.id!;
+      var uuid = Date.now();
+      useChatStore().addConversation(uuid, item.title, item.maxContext, item);
+      // useRouterPush(false).routerPushByKey("chat", { query: { uuid: item.id!.toString() } });
     },
     getChatExamplePrompts() {
       if (this.examplePromptList?.length > 0) return;

@@ -5,7 +5,7 @@ import { useLoading } from '@sa/hooks';
 import { SetupStoreId } from '@/enum';
 import { useRouterPush } from '@/hooks/common/router';
 import { fetchLogin } from '@/service/api';
-import { localStg } from '@/utils/storage';
+import { localStg, localforage, sessionStg } from '@/utils/storage';
 import { $t } from '@/locales';
 import { useRouteStore } from '../route';
 import { clearAuthStorage, getToken, getUserInfo } from './shared';
@@ -37,11 +37,14 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     clearAuthStorage();
 
     authStore.$reset();
-
+    localStorage.clear();
+    document.cookie = "";
     if (!route.meta.constant) {
       await toLogin();
     }
-
+    sessionStg.clear();
+    localStg.clear();
+    localforage.clear();
     routeStore.resetStore();
   }
 

@@ -84,4 +84,12 @@ export function getFileName(url: string) {
   const imgname = url.split('/');//分割url
   return imgname[imgname.length - 1];
 }
+/**
+ * 生成一个用不重复的ID
+ * @param { Number } randomLength
+ */
+export function getGUID(randomLength?: number) {
+  randomLength = randomLength ?? 10;
+  return Number(Math.random().toString().substr(2, randomLength) + Date.now()).toString(36)
+}
 

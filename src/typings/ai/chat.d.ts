@@ -1,7 +1,7 @@
 declare namespace Chat {
   type ChatType = "chat" | "group" | "share";
   interface Chat {
-    id?: string,
+    id: string,
     chatDbId?: string,
     dateTime: string
     text: string
@@ -9,33 +9,44 @@ declare namespace Chat {
     inversion?: boolean
     error?: boolean
     loading?: boolean
-    model?: string
+    model: string
   }
   interface History {
     title: string
     isEdit: boolean
     uuid: number
+    model: JuAI.AIModel,
+    maxContext: number,
     avatar?: string
     desc?: string
-    chatPrompt?: JuAI.ChatPrompt
+    chatPrompt?: JuAI.ChatPrompt  //聊天助手
     isShare?: boolean
   }
-
+  interface Conversation {
+    uuid: number;
+    name: string;
+    isEdit: boolean;
+    maxContext: number;
+    model: JuAI.AIModel,
+    data: Chat[],
+    chatPrompt?: JuAI.ChatPrompt,
+    isShare?: boolean,
+  }
   interface ChatState {
-    currentModel: string,
+    deafultModel: string,
     siderCollapsed: boolean,
-    active: number | null
-    usingContext: boolean;
+    // active: number
+    // usingContext: boolean;
     usingAsyncDb: boolean;
     usingShareContext?: boolean;
-    history: History[]
-    chat: { uuid: number; data: Chat[], chatPrompt?: JuAI.ChatPrompt }[];
+    conversations: Conversation[];
+    // history: History[]
+    // chat: { uuid: number; data: Chat[], chatPrompt?: JuAI.ChatPrompt }[];
   }
   interface ChatGptRequest {
     prompt: string
     options?: {
       rolePrompt?: string,
-      useContext: boolean,
       maxContext?: number,
       conversationId?: string,
       useAsyncDb: boolean,

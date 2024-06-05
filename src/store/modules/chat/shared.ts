@@ -1,17 +1,16 @@
 
 import { localStg as ss } from '@/utils/storage';
 const LOCAL_NAME = 'chatState'
-
+const DEAFULT_MODEL = "gpt-3.5-turbo";
 export function defaultState(): Chat.ChatState {
-  const uuid = 1002
   return {
-    currentModel: "openai:gpt-3.5-turbo",
+    deafultModel: DEAFULT_MODEL,
     siderCollapsed: false,
-    active: uuid,
-    usingContext: true,
+    // active: uuid,
+    // usingContext: true,
     usingAsyncDb: true,
-    history: [{ uuid, title: 'New Chat', isEdit: false }],
-    chat: [{ uuid, data: [] }],
+    // history: [],
+    conversations: [],
   }
 }
 

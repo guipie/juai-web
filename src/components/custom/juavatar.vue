@@ -1,5 +1,12 @@
 <template>
-  <n-avatar  object-fit="cover" :size="48" lazy :src="imageSrc" fallback-src="juaiImage" />
+  <n-avatar
+    object-fit="cover"
+    :size="48"
+    :style="style"
+    lazy
+    :src="imageSrc"
+    fallback-src="juaiImage"
+  />
 </template>
 <script setup lang="ts">
 import juaiImage from "@/assets/juai.jpg";

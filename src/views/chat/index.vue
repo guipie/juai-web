@@ -11,67 +11,48 @@ import { $t as t } from "@/locales";
 import { useChatStore } from "@/store/modules/chat";
 import { fetchChatAPIProcess } from "@/service/api/ai/chat";
 import { useBasicLayout } from "@/hooks/useBasicLayout";
-import { useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { useAuthStore } from "@/store/modules/auth";
+import { getGUID } from "@/utils/common";
 let controller = new AbortController();
 const dialog = useDialog();
 const ms = useMessage();
-
 const chatStore = useChatStore();
-
+const route = useRoute();
 const { isMobile } = useBasicLayout();
-const {
-  addChat,
-  updateChat,
-  updateChatById,
-  updateChatSome,
-  getChatByUuidAndIndex,
-} = useChat();
+const { addChat, updateChatById, getChatByUuid } = useChat();
 const { scrollRef, scrollToBottom, scrollToBottomIfAtBottom } = useScroll();
-const {
-  usingContext,
-  usingAsyncDb,
-  toggleUsingAsyncDb,
-  toggleUsingContext,
-} = useUsingContext();
+const { usingContext, usingAsyncDb, toggleUsingAsyncDb } = useUsingContext();
 
-let uuid = Number(
-  useRouter().currentRoute.value.query.uuid?.toString() ??
-    chatStore.active ??
-    Math.ceil(Math.random() * 100000000)
-);
-console.log("uuid", uuid);
-chatStore.setActive(uuid);
-const dataSources = computed(() => chatStore.getChatByUuid(+chatStore.active!));
-const currentChat = computed(() => chatStore.getChatHistoryByCurrentActive);
+let uuid = Number(route.query.uuid?.toString());
+chatStore.reloadRoute(uuid);
+const dataSources = ref(chatStore.getChatDataByUuid(uuid));
+
+const currentChat = ref(chatStore.getConversationByUuid(uuid));
 watch(
-  () => chatStore.active,
+  () => route.query.uuid,
   () => {
-    uuid = chatStore.active!;
+    uuid = Number(route.query.uuid);
+    currentChat.value = chatStore.getConversationByUuid(Number(route.query.uuid));
+    dataSources.value = chatStore.getChatDataByUuid(uuid);
   }
 );
 const prompt = ref<string>("");
 const loading = ref<boolean>(false);
 const inputRef = ref<Ref | null>(null);
 
-// 未知原因刷新页面，loading 状态不会重置，手动重置
-dataSources.value.forEach((item, index) => {
-  if (item.loading) updateChatSome(+uuid, index, { loading: false });
-});
-
 function handleSubmit() {
   if (currentChat.value?.chatPrompt?.isGroup) {
     let models = currentChat.value?.chatPrompt.promptExtend.split(":");
-    let reqId = Date.now() + models.length;
     for (let index = 0; index < models.length; index++) {
       console.log(models[index]);
-      onConversation(models[index], reqId);
+      onConversation(models[index], true, index == 0);
       if (index == models.length - 1) prompt.value = "";
     }
-  } else onConversation();
+  } else onConversation(currentChat.value!.model.name);
 }
 
-async function onConversation(model?: string, reqId?: string) {
+async function onConversation(model: string, isGroup = false, groupFirst = true) {
   let message = prompt.value;
 
   if (loading.value && !model) return;
@@ -79,21 +60,22 @@ async function onConversation(model?: string, reqId?: string) {
   if (!message || message.trim() === "") return;
 
   controller = new AbortController();
-
-  addChat(+uuid, {
-    id: reqId ?? Date.now().toString(),
-    dateTime: new Date().toLocaleString(),
-    text: message,
-    reqText: message,
-    inversion: true,
-    error: false,
-  });
+  if ((isGroup && groupFirst) || !isGroup)
+    addChat(+uuid, {
+      id: getGUID(),
+      dateTime: new Date().toLocaleString(),
+      text: message,
+      reqText: message,
+      inversion: true,
+      error: false,
+      model: model,
+    });
   scrollToBottom();
   loading.value = true;
-  if (!model) prompt.value = "";
-  let chatId = Date.now() + (model ?? "");
+  const answerId = getGUID();
+  if (!isGroup) prompt.value = "";
   addChat(+uuid, {
-    id: chatId,
+    id: answerId,
     dateTime: new Date().toLocaleString(),
     text: "思考中",
     reqText: message,
@@ -108,12 +90,13 @@ async function onConversation(model?: string, reqId?: string) {
     let lastText = "";
     const fetchChatAPIOnce = async () => {
       await fetchChatAPIProcess<Chat.ConversationResponse>(
+        uuid,
         message,
         +uuid,
         null,
-        model ? "group" : "chat",
+        { model: model, isGroup },
         controller.signal,
-        ({ event }, model) => {
+        ({ event }) => {
           const xhr = event.target;
           const { responseText } = xhr;
           console.log(responseText);
@@ -123,7 +106,8 @@ async function onConversation(model?: string, reqId?: string) {
           if (lastIndex !== -1) chunk = responseText.substring(lastIndex);
           try {
             const data = JSON.parse(chunk);
-            updateChatById(+uuid, chatId, {
+            updateChatById(+uuid, {
+              id: answerId,
               chatDbId: data.chatDbId,
               dateTime: new Date().toLocaleString(),
               text: lastText + (data.text ?? ""),
@@ -131,41 +115,44 @@ async function onConversation(model?: string, reqId?: string) {
               inversion: false,
               error: false,
               loading: true,
-              model: model,
             });
             scrollToBottomIfAtBottom();
           } catch (error) {
             console.log("出错了", error);
           }
-        },
-        { model }
+        }
       );
-      updateChatById(+uuid, chatId, { loading: false });
+      updateChatById(+uuid, {
+        id: answerId,
+        loading: false,
+      });
     };
-
     await fetchChatAPIOnce();
   } catch (error: any) {
     console.log(error);
     const errorMessage = error?.message ?? t("common.wrong");
     if (error.message === "canceled") {
-      updateChatById(+uuid, chatId, {
+      updateChatById(+uuid, {
+        id: answerId,
         loading: false,
       });
       scrollToBottomIfAtBottom();
       return;
     }
 
-    const currentChat = getChatByUuidAndIndex(+uuid, dataSources.value.length - 1);
+    const currentChat = getChatByUuid(+uuid, answerId);
 
     if (currentChat?.text && currentChat.text !== "") {
-      updateChatById(+uuid, chatId, {
+      updateChatById(+uuid, {
+        id: answerId,
         text: `${currentChat.text}\n[${errorMessage}]`,
         error: false,
         loading: false,
       });
       return;
     }
-    updateChatById(+uuid, chatId, {
+    updateChatById(+uuid, {
+      id: answerId,
       dateTime: new Date().toLocaleString(),
       text: errorMessage,
       reqText: message,
@@ -185,7 +172,8 @@ async function onRegenerate(index: number) {
   controller = new AbortController();
   const currentReq = dataSources.value[index];
   loading.value = true;
-  updateChat(+uuid, index, {
+  updateChatById(+uuid, {
+    id: currentReq.id,
     chatDbId: currentReq.chatDbId,
     dateTime: new Date().toLocaleString(),
     text: "重新回答中..",
@@ -199,12 +187,13 @@ async function onRegenerate(index: number) {
     let lastText = "";
     const fetchChatAPIOnce = async () => {
       await fetchChatAPIProcess<Chat.ConversationResponse>(
+        uuid,
         currentReq.reqText,
         +uuid,
         currentReq.chatDbId!,
-        currentChat.value?.chatPrompt?.isGroup ? "group" : "chat",
+        { model: currentReq.model, isGroup: false },
         controller.signal,
-        ({ event }, model) => {
+        ({ event }) => {
           const xhr = event.target;
           const { responseText } = xhr;
           console.log(responseText);
@@ -214,7 +203,8 @@ async function onRegenerate(index: number) {
           if (lastIndex !== -1) chunk = responseText.substring(lastIndex);
           try {
             const data = JSON.parse(chunk);
-            updateChat(+uuid, index, {
+            updateChatById(+uuid, {
+              id: currentReq.id,
               chatDbId: data.chatDbId,
               dateTime: new Date().toLocaleString(),
               text: lastText + (data.text ?? ""),
@@ -222,26 +212,24 @@ async function onRegenerate(index: number) {
               inversion: false,
               error: false,
               loading: true,
-              model: model,
+              model: currentReq.model,
             });
           } catch (error) {
             console.log("出错了", error);
           }
-        },
-        { model: currentReq.model }
+        }
       );
-      updateChatSome(+uuid, index, { loading: false });
+      updateChatById(+uuid, { id: currentReq.id, loading: false });
     };
     await fetchChatAPIOnce();
   } catch (error: any) {
     if (error.message === "canceled") {
-      updateChatSome(+uuid, index, {
-        loading: false,
-      });
+      updateChatById(+uuid, { id: currentReq.id, loading: false });
       return;
     }
     const errorMessage = error?.message ?? t("common.wrong");
-    updateChatSome(+uuid, index, {
+    updateChatById(+uuid, {
+      id: currentReq.id,
       dateTime: new Date().toLocaleString(),
       text: errorMessage,
       reqText: currentReq.reqText,
@@ -316,7 +304,7 @@ function handleClear() {
     positiveText: t("common.yesOrNo.yes"),
     negativeText: t("common.yesOrNo.no"),
     onPositiveClick: () => {
-      chatStore.clearChatByUuid(+uuid);
+      chatStore.deleteConversation(+uuid);
     },
   });
 }
@@ -370,7 +358,7 @@ const footerClass = computed(() => {
 });
 
 const getContainerClass = computed(() => {
-  return ["h-full", { "pl-[290px]": !isMobile.value && !collapsed.value }];
+  return ["h-full", { "pl-[320px]": !isMobile.value && !collapsed.value }];
 });
 const collapsed = computed(() => chatStore.siderCollapsed);
 onMounted(() => {
@@ -388,7 +376,7 @@ onUnmounted(() => {
   <div class="flex-1 h-full transition-all bg-container">
     <div class="h-full overflow-hidden">
       <NLayout class="z-40 transition" :class="getContainerClass" has-sider>
-        <Sider />
+        <Sider :cur-conversion="currentChat" v-if="currentChat" />
         <NLayoutContent class="h-full">
           <div class="flex flex-col w-full h-full">
             <HeaderComponent
@@ -413,11 +401,9 @@ onUnmounted(() => {
                       <SvgIcon icon="ri:bubble-chart-fill" class="mr-2 text-3xl" />
                       <span
                         style="white-space: pre-wrap"
-                        v-if="chatStore.getChatHistoryByCurrentActive?.chatPrompt"
+                        v-if="currentChat?.chatPrompt?.initMessage"
                       >
-                        {{
-                          chatStore.getChatHistoryByCurrentActive?.chatPrompt.initMessage
-                        }}
+                        {{ currentChat?.chatPrompt?.initMessage }}
                       </span>
                       <span v-else>
                         欢迎使用聚AI，更多精彩持续升级中~
@@ -435,7 +421,7 @@ onUnmounted(() => {
                         :date-time="item.dateTime"
                         :text="item.text"
                         :inversion="item.inversion"
-                        :model="item.model"
+                        :chatModel="item.model"
                         :error="item.error"
                         :loading="item.loading"
                         :chat-db-id="item.chatDbId?.toString()"
@@ -488,7 +474,7 @@ onUnmounted(() => {
                       <SvgIcon icon="ri:download-2-line" />
                     </span>
                   </HoverButton>
-                  <HoverButton :checked="usingContext" @click="toggleUsingContext">
+                  <!-- <HoverButton :checked="usingContext" @click="toggleUsingContext">
                     <span
                       class="text-xl text-[#a8071a]"
                       :class="{
@@ -497,7 +483,7 @@ onUnmounted(() => {
                     >
                       <SvgIcon icon="ri:chat-history-line" />
                     </span>
-                  </HoverButton>
+                  </HoverButton> -->
                   <NAutoComplete v-model:value="prompt">
                     <template #default="{ handleInput, handleBlur, handleFocus }">
                       <NInput

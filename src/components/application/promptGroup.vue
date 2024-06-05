@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import defaultAvatar from "@/assets/juai.jpg";
 import { useAICommonStore } from "@/store/modules/aicommon";
-import { NText, SelectRenderLabel, SelectRenderTag, UploadFileInfo } from "naive-ui";
-import { computed, h, ref } from "vue";
+import { UploadFileInfo } from "naive-ui";
+import { computed, ref } from "vue";
+import SelectMaxContext from "@/components/common/select-max-context.vue";
 const aiStore = useAICommonStore();
 interface Props {
   value: boolean;
@@ -36,72 +37,7 @@ const createModelAvatar = ref<UploadFileInfo[]>([
 const showCreateMore = ref(false);
 const creating = ref(false);
 const models = ref<Array<any>>();
-const showCreteMaxContexts = [
-  {
-    label: "无记忆",
-    value: 0,
-    desc: "每次对话都是独立的，常用于一次性问答，节省积分",
-  },
-  {
-    label: "基础",
-    value: 3,
-    desc: "记住最近的三次对话",
-  },
-  {
-    label: "中等",
-    value: 6,
-    desc: "记住最近的六次对话",
-  },
-  {
-    label: "高级",
-    value: 1000,
-    desc: "记住当前会话的所有对话，慎用，消耗积分较多",
-  },
-];
-const renderMaxContextLabel: SelectRenderLabel = (option) => {
-  return h(
-    "div",
-    {
-      style: {
-        display: "flex",
-        alignItems: "center",
-      },
-    },
-    [
-      h(
-        "div",
-        {
-          style: {
-            marginLeft: "12px",
-            padding: "4px 0",
-          },
-        },
-        [
-          h("div", null, [option.label as string]),
-          h(
-            NText,
-            { depth: 3, tag: "div" },
-            {
-              default: () => option.desc as string,
-            }
-          ),
-        ]
-      ),
-    ]
-  );
-};
-const renderSelectMaxContext: SelectRenderTag = ({ option }) => {
-  return h(
-    "div",
-    {
-      style: {
-        display: "flex",
-        alignItems: "center",
-      },
-    },
-    [option.label as string]
-  );
-};
+
 const handleCreate = () => {
   console.log(createModelAvatar);
   if (!models.value || models.value.length <= 1)
@@ -154,7 +90,7 @@ const handleCreate = () => {
               virtual-scroll
               :options="
                 aiStore.models.map((item) => ({
-                  label: item.name,
+                  label: item.shortName,
                   value: item.modelId,
                 }))
               "
@@ -171,12 +107,9 @@ const handleCreate = () => {
         <n-list-item v-if="showCreateMore">
           <template #prefix> <div class="w-14">记忆深度</div> </template>
           <n-thing content-style="text-align: right;">
-            <n-select
-              v-model:value="application.maxContext"
-              :options="showCreteMaxContexts"
-              :render-label="renderMaxContextLabel"
-              :render-tag="renderSelectMaxContext"
-            />
+            <select-max-context
+              v-model:val="application.maxContext"
+            ></select-max-context>
           </n-thing>
         </n-list-item>
       </n-list>

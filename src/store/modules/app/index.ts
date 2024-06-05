@@ -33,6 +33,7 @@ export const useAppStore = defineStore(SetupStoreId.App, () => {
    * @param duration Duration time
    */
   async function reloadPage(duration = 300) {
+
     setReloadFlag(false);
 
     const d = themeStore.page.animate ? duration : 40;

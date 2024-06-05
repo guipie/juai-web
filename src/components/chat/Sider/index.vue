@@ -1,16 +1,31 @@
 <script setup lang="ts">
-import { CSSProperties, ref } from "vue";
+import { CSSProperties, ref, PropType } from "vue";
 import { computed, watch } from "vue";
-import { NButton, NLayoutSider, useDialog, NSelect } from "naive-ui";
+import { NButton, NLayoutSider, useDialog } from "naive-ui";
 import List from "./List.vue";
 import { useChatStore } from "@/store/modules/chat";
 import { $t as t } from "@/locales";
 import { useBasicLayout } from "@/hooks/useBasicLayout";
-import { useAICommonStore } from "@/store/modules/aicommon/index";
 import { useIconRender } from "@/hooks/useIconRender";
-import SvgIcon from '@/components/custom/svg-icon.vue'
+import SvgIcon from "@/components/custom/svg-icon.vue";
 import prompt from "@/components/application/prompt.vue";
 import PromptGroup from "@/components/application/promptGroup.vue";
+import SelectModel from "@/components/common/select-model.vue";
+import { useAICommonStore } from "@/store/modules/aicommon";
+import SelectMaxContext from "@/components/common/select-max-context.vue";
+import { useRouter } from "vue-router";
+const router = useRouter();
+const props = defineProps({ curConversion: Object as PropType<Chat.Conversation> });
+const curChat = ref(props.curConversion);
+
+watch(
+  () => router.currentRoute.value.query.uuid,
+  () => {
+    curChat.value = chatStore.getConversationByUuid(
+      Number(router.currentRoute.value.query.uuid)
+    );
+  }
+);
 
 const chatStore = useChatStore();
 const aiStore = useAICommonStore();
@@ -21,7 +36,9 @@ const isMobile = useBasicLayout().isMobile;
 const collapsed = computed(() => chatStore.siderCollapsed);
 
 function handleAdd() {
-  chatStore.addHistory({ title: "New Chat", uuid: Date.now(), isEdit: false });
+  var model = aiStore.getModelByModelName();
+  if (!model) return window.$message?.error("未获取到模型，请刷新重试");
+  chatStore.addConversation(Date.now());
   if (isMobile.value) chatStore.setSiderCollapsed(true);
 }
 
@@ -100,7 +117,7 @@ function handleChatOptionsSelect(key: string | number) {
         positiveText: t("common.yesOrNo.yes"),
         negativeText: t("common.yesOrNo.yes"),
         onPositiveClick: () => {
-          chatStore.clearHistory();
+          chatStore.clearConversations();
           if (isMobile.value) chatStore.setSiderCollapsed(true);
         },
       });
@@ -142,20 +159,33 @@ function handleChatOptionsSelect(key: string | number) {
         <div class="flex-1 min-h-0 pb-4 overflow-hidden">
           <List />
         </div>
-        <div
-          class="flex items-center p-4 space-x-4"
-          v-if="!chatStore.getIsPromptByCurrentActive"
-        >
-          <div class="flex-1">
-            <n-select
-              v-model:value="chatStore.currentModel"
-              v-on:update:value="useAICommonStore().recordState"
-              :options="
-                aiStore.models?.map((m) => {
-                  return { value: m.modelId, label: m.name };
-                })
-              "
-            />
+        <div class="flex flex-col p-4 space-y-2" disabled="true">
+          <div>
+            <SelectMaxContext
+              :disabled="!!curChat?.chatPrompt"
+              @update:val="(val:number) => chatStore.curMaxContextChange(curChat!.uuid, val)"
+              v-model:val="curChat!.maxContext"
+            ></SelectMaxContext>
+          </div>
+          <div>
+            <!-- <div v-if="curChat?.chatPrompt?.isGroup" class="max-h-sm overflow-auto">
+              <n-tag
+                round
+                :bordered="false"
+                v-for="item in curChat.chatPrompt.promptExtend.split(':')"
+              >
+                {{ item }}
+                <template #avatar>
+                  <n-avatar :src="aiStore.getModelByModelName(item)?.avatarUrl!" />
+                </template>
+              </n-tag>
+            </div> -->
+            <SelectModel
+              v-if="!curChat?.chatPrompt?.isGroup"
+              :disabled="!!curChat?.chatPrompt"
+              @update:val="(val:string) => chatStore.curChatModelChange(curChat!.uuid, val)"
+              v-model:val="curChat!.model.name"
+            ></SelectModel>
           </div>
         </div>
       </main>
